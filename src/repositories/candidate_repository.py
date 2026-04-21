@@ -8,7 +8,7 @@ Key design notes:
 - update_review: gap fix — HR override with notes
 """
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -243,6 +243,28 @@ class CandidateRepository(BaseCandidateRepository):
                 f"Failed to count candidates by status: {exc}", {"job_id": job_id}
             ) from exc
 
+    async def delete(self, candidate_id: str) -> None:
+        """Hard delete candidate record. Raises PersistenceError, CandidateNotFoundError."""
+        try:
+            stmt = (
+                delete(CandidateORM)
+                .where(CandidateORM.id == candidate_id)
+                .returning(CandidateORM.id)
+            )
+            result = await self._session.execute(stmt)
+            if result.scalar_one_or_none() is None:
+                raise CandidateNotFoundError(
+                    f"Candidate not found: {candidate_id}",
+                    {"candidate_id": candidate_id},
+                )
+            logger.info("candidate_deleted", candidate_id=candidate_id)
+        except CandidateNotFoundError:
+            raise
+        except SQLAlchemyError as exc:
+            raise PersistenceError(
+                f"Failed to delete candidate: {exc}", {"candidate_id": candidate_id}
+            ) from exc
+        
     @staticmethod
     def _to_entity(orm: CandidateORM) -> Candidate:
         return Candidate(

@@ -49,6 +49,10 @@ class BaseCandidateRepository(ABC):
         """HR override: update status and review_notes. Raises PersistenceError, CandidateNotFoundError."""
 
     @abstractmethod
+    async def delete(self, candidate_id: str) -> None:
+        """Hard delete candidate record. Raises PersistenceError, CandidateNotFoundError."""
+        
+    @abstractmethod
     async def find_existing_hashes(
         self,
         job_id: str,
