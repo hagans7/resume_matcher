@@ -1,12 +1,4 @@
 """BatchRepository — SQLAlchemy async implementation of BaseBatchRepository.
-
-Key fixes applied:
-  Fix 1: atomic_increment_and_finalize() — increment + completion check in ONE SQL statement.
-         Eliminates race condition where two workers both read stale state and both update status.
-  Fix 3: find_existing_hashes() — bulk IN query instead of N individual find_by_hash() calls.
-         O(1) roundtrip regardless of batch size.
-
-Original increment_succeeded / increment_failed kept for compatibility with single-CV flow.
 """
 
 from sqlalchemy import case, select, update
