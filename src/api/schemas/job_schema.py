@@ -31,6 +31,14 @@ class JobResponse(BaseModel):
     created_by: str | None = None
 
 class UpdateJobRequest(BaseModel):
-    """Request body for PUT /jobs/{job_id} — update title and/or description."""
-    title: str = Field(min_length=1, max_length=200)
-    description: str = Field(min_length=10)
+    """Request body for PATCH /jobs/{job_id} — partial update of title and/or description.
+ 
+    Both fields are optional — only provided fields are updated.
+    At least one field must be present.
+    """
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, min_length=10)
+ 
+    def model_post_init(self, __context) -> None:
+        if self.title is None and self.description is None:
+            raise ValueError("At least one field (title or description) must be provided.")

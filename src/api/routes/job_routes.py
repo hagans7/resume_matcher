@@ -74,18 +74,24 @@ async def get_job(
     return SuccessResponse(data=_to_response(job))
 
 
-@router.put("/{job_id}", response_model=SuccessResponse)
+
+@router.patch("/{job_id}", response_model=SuccessResponse)
 async def update_job(
     job_id: str,
     body: UpdateJobRequest,
     job_repo=Depends(get_job_repo),
 ):
-    """Update job title and description. Job must be active."""
+    """Partial update of job title and/or description. At least one field required."""
+    # Fetch current values to merge with partial update
+    job = await job_repo.get_by_id(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+ 
     try:
         updated = await job_repo.update(
             job_id=job_id,
-            title=body.title,
-            description=body.description,
+            title=body.title if body.title is not None else job.title,
+            description=body.description if body.description is not None else job.description,
         )
         return SuccessResponse(data=_to_response(updated))
     except JobNotFoundError as exc:
