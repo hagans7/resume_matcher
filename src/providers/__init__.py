@@ -13,8 +13,10 @@ from src.providers.infrastructure import (
 )
 from src.providers.repositories import get_batch_repo, get_candidate_repo, get_job_repo
 from src.providers.services import (
+    get_cancel_batch_service,
     get_check_batch_status_service,
     get_create_job_service,
+    get_delete_candidate_service,
     get_evaluate_resume_service,
     get_list_candidates_service,
     get_mask_pii_service,
@@ -35,8 +37,10 @@ __all__ = [
     "get_candidate_repo",
     "get_job_repo",
     # Services
+    "get_cancel_batch_service",
     "get_check_batch_status_service",
     "get_create_job_service",
+    "get_delete_candidate_service",
     "get_evaluate_resume_service",
     "get_list_candidates_service",
     "get_mask_pii_service",

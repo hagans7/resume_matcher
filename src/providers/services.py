@@ -24,6 +24,8 @@ from src.services.ingest_candidate import IngestCandidateService
 from src.services.list_candidates import ListCandidatesService
 from src.services.mask_pii import MaskPIIService
 from src.services.prepare_cv_text import PrepareCVTextService
+from src.services.cancel_batch import CancelBatchService
+from src.services.delete_candidate import DeleteCandidateService
 from src.services.review_candidate import ReviewCandidateService
 from src.services.submit_batch import SubmitBatchService
 
@@ -122,3 +124,16 @@ def get_review_candidate_service(
     candidate_repo: BaseCandidateRepository = Depends(get_candidate_repo),
 ) -> ReviewCandidateService:
     return ReviewCandidateService(candidate_repo=candidate_repo)
+
+
+def get_delete_candidate_service(
+    candidate_repo: BaseCandidateRepository = Depends(get_candidate_repo),
+    storage: BaseStorageClient = Depends(get_storage_client),
+) -> DeleteCandidateService:
+    return DeleteCandidateService(candidate_repo=candidate_repo, storage=storage)
+ 
+ 
+def get_cancel_batch_service(
+    batch_repo: BaseBatchRepository = Depends(get_batch_repo),
+) -> CancelBatchService:
+    return CancelBatchService(batch_repo=batch_repo)

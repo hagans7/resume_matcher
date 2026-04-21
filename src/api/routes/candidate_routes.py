@@ -1,6 +1,15 @@
-"""Candidate management routes."""
+"""Candidate management routes.
+ 
+Endpoints:
+  GET    /jobs/{job_id}/candidates              — list candidates for a job
+  GET    /candidates/{candidate_id}             — get candidate detail
+  GET    /candidates/{candidate_id}/download    — download original CV file
+  PATCH  /candidates/{candidate_id}/review      — HR manual review
+  DELETE /candidates/{candidate_id}             — hard delete + storage cleanup
+"""
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 
 from src.api.schemas.base_schema import SuccessResponse
 from src.api.schemas.candidate_schema import (
@@ -14,11 +23,18 @@ from src.core.exceptions.app_exceptions import (
     CandidateNotFoundError,
     InvalidStatusTransitionError,
     JobNotFoundError,
+    NotFoundError,
+    StorageError,
 )
 from src.core.logging.logger import get_logger
 from src.entities.candidate import Candidate
-from src.providers import get_list_candidates_service, get_review_candidate_service
+from src.providers import (
+    get_list_candidates_service,
+    get_review_candidate_service,
+    get_delete_candidate_service,
+    get_storage_client)
 from src.providers.repositories import get_candidate_repo
+from src.services.delete_candidate import DeleteCandidateService
 from src.services.list_candidates import ListCandidatesService
 from src.services.review_candidate import ReviewCandidateService
 
@@ -91,6 +107,46 @@ async def get_candidate(
     )
 
 
+@router.get("/candidates/{candidate_id}/download")
+async def download_candidate_cv(
+    candidate_id: str,
+    candidate_repo=Depends(get_candidate_repo),
+    storage=Depends(get_storage_client),
+):
+    """Download the original CV file (PDF or DOCX) for a candidate.
+ 
+    Returns the raw file bytes with appropriate Content-Disposition header.
+    Useful for HR to verify AI evaluation against the source document.
+    """
+    candidate = await candidate_repo.get_by_id(candidate_id)
+    if candidate is None:
+        raise HTTPException(status_code=404, detail=f"Candidate not found: {candidate_id}")
+ 
+    try:
+        file_bytes = await storage.load(candidate.file_key)
+    except NotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"CV file not found in storage for candidate: {candidate_id}",
+        )
+    except StorageError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve CV: {exc}")
+ 
+    # Determine content type from filename
+    filename = candidate.original_filename
+    if filename.lower().endswith(".pdf"):
+        content_type = "application/pdf"
+    elif filename.lower().endswith(".docx"):
+        content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        content_type = "application/octet-stream"
+ 
+    return Response(
+        content=file_bytes,
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
 @router.patch("/candidates/{candidate_id}/review", response_model=SuccessResponse)
 async def review_candidate(
     candidate_id: str,
@@ -118,3 +174,20 @@ async def review_candidate(
         raise HTTPException(status_code=404, detail=exc.message)
     except InvalidStatusTransitionError as exc:
         raise HTTPException(status_code=422, detail=exc.message)
+
+
+@router.delete("/candidates/{candidate_id}", status_code=204)
+async def delete_candidate(
+    candidate_id: str,
+    service: DeleteCandidateService = Depends(get_delete_candidate_service),
+):
+    """Hard delete candidate record and all associated files from storage.
+ 
+    This operation is irreversible. The original CV, parsed text, and evaluation
+    report are all removed from storage. Returns HTTP 204 (No Content) on success.
+    """
+    try:
+        await service.execute(candidate_id=candidate_id)
+    except CandidateNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=exc.message)
+    # Return None → FastAPI sends 204 No Content automatically

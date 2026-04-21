@@ -1,7 +1,5 @@
 """Evaluation API schemas.
 
-Gap fix: EvaluationResultData uses typed nested models instead of plain dict.
-This gives stable API contract that frontend can rely on.
 """
 
 from datetime import datetime

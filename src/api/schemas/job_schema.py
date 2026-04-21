@@ -21,8 +21,6 @@ class CreateJobRequest(BaseModel):
         if v not in VALID_EVALUATION_MODES:
             raise ValueError(f"Must be one of: {sorted(VALID_EVALUATION_MODES)}")
         return v
-
-
 class JobResponse(BaseModel):
     id: str
     title: str
@@ -31,3 +29,8 @@ class JobResponse(BaseModel):
     status: str
     created_at: datetime
     created_by: str | None = None
+
+class UpdateJobRequest(BaseModel):
+    """Request body for PUT /jobs/{job_id} — update title and/or description."""
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=10)
