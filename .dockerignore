@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.uv/
+
+# Environment (never copy secrets into image)
+.env
+.env.local
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Tests (not needed in production image)
+tests/
+
+# Logs and storage (mounted as volumes at runtime)
+logs/
+storage/cv/original/*
+storage/cv/parsed/*
+storage/reports/*
+
+# Docker files themselves
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
