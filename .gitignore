@@ -247,7 +247,7 @@ storage/reports/*
 alembic/versions/__pycache__/
 
 # Logs
-logs/*.log
+logs/*
 !logs/.gitkeep
 
 # IDE
@@ -255,7 +255,7 @@ logs/*.log
 .vscode/
 *.swp
 *.swo
-
+exp_*
 # Docker
 .docker/
 
@@ -283,3 +283,6 @@ htmlcov/
 *.tmp
 *.temp
 *.bak
+
+#file
+commit_template.txt
