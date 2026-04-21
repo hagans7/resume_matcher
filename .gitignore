@@ -138,6 +138,7 @@ celerybeat.pid
 .env
 .envrc
 .venv
+.env.local
 env/
 venv/
 ENV/
@@ -205,3 +206,84 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# uv
+.uv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Storage (local files — not for version control)
+storage/cv/original/*
+storage/cv/parsed/*
+storage/reports/*
+!storage/.gitkeep
+!storage/cv/.gitkeep
+!storage/cv/original/.gitkeep
+!storage/cv/parsed/.gitkeep
+!storage/reports/.gitkeep
+
+# Alembic cache
+alembic/versions/__pycache__/
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+exp_*
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+
+#Jupyter
+.ipynb_checkpoints/
+
+# Ruff / mypy
+.ruff_cache/
+.mypy_cache/
+
+# Temp files
+*.tmp
+*.temp
+*.bak
+
+#file
+commit_template.txt
+README.md

@@ -1,0 +1,191 @@
+profile_resume:
+  agent: resume_profiler
+  description: >
+    Extract all information from the following CV text and return structured data.
+
+    CV TEXT:
+    {cv_text}
+
+    Extract: full name, all technical skills, years of experience per role,
+    education degree and field, certifications, and whether the CV contains
+    a projects or portfolio section. If a field is not present, return empty
+    string or empty list — never fabricate.
+  expected_output: >
+    A structured JSON object with fields: name, skills (list), experience_years (int),
+    experience_summary (str), education_degree (str), education_field (str),
+    certifications (list), has_projects (bool), project_names (list).
+  context: []
+
+analyze_jd:
+  agent: jd_analyst
+  description: >
+    Parse the following job description and extract structured requirements.
+
+    JOB DESCRIPTION:
+    {jd_text}
+
+    Extract: job title, required skills, preferred skills, minimum experience years,
+    education requirement, whether soft skills are mentioned, and whether the JD
+    explicitly requires project or portfolio examples.
+  expected_output: >
+    A structured JSON object with fields: title (str), required_skills (list),
+    preferred_skills (list), min_experience_years (int), education_requirement (str),
+    soft_skills_mentioned (list), has_soft_skill_requirement (bool),
+    has_project_requirement (bool).
+  context: []
+
+match_skills:
+  agent: skill_matcher
+  description: >
+    Using the CV profile and JD requirements from previous tasks,
+    compare the candidate's skills against the job requirements.
+
+    Normalize skill aliases before comparing (JS=JavaScript, k8s=Kubernetes,
+    py=Python, pg=PostgreSQL, tf=Terraform, react.js=React, node.js=NodeJS,
+    ts=TypeScript, ml=machine learning).
+
+    Classify each required skill as: matched (exact or alias), partial (related but
+    not identical), or missing (not present). Assign a score 0-100.
+  expected_output: >
+    A structured JSON object with fields: score (int 0-100), matched (list),
+    missing (list), partial (list), notes (str, max 2 sentences).
+  context:
+    - profile_resume
+    - analyze_jd
+
+evaluate_experience:
+  agent: experience_evaluator
+  description: >
+    Using the CV profile and JD requirements from previous tasks,
+    evaluate the relevance and depth of the candidate's work experience.
+
+    Consider: domain alignment, seniority level, scope of responsibilities.
+    Extract relevant years (years in roles directly related to this JD domain).
+    Assign a score 0-100.
+  expected_output: >
+    A structured JSON object with fields: score (int 0-100), relevant_years (int),
+    required_years (int, from JD), notes (str, max 2 sentences).
+  context:
+    - profile_resume
+    - analyze_jd
+
+assess_education:
+  agent: education_assessor
+  description: >
+    Using the CV profile and JD requirements from previous tasks,
+    assess whether the candidate's education meets the job requirements.
+
+    Consider degree relevance, field alignment, and certifications as compensating factors.
+    Assign a score 0-100.
+  expected_output: >
+    A structured JSON object with fields: score (int 0-100), meets_requirement (bool),
+    notes (str, max 2 sentences).
+  context:
+    - profile_resume
+    - analyze_jd
+
+detect_red_flags:
+  agent: red_flag_detector
+  description: >
+    Review the CV profile from previous tasks and identify employment anomalies.
+
+    Check for:
+    - Employment gaps longer than 12 consecutive months
+    - Job hopping: more than 3 job changes within any 24-month window
+    - Date inconsistencies (overlapping or impossible dates)
+    - Severe overqualification for the stated role
+
+    For each flag found, specify: type, detail, severity (low/medium/high).
+    If no flags found, return empty flags list.
+  expected_output: >
+    A structured JSON object with fields: flags (list of objects with type/detail/severity),
+    notes (str).
+  context:
+    - profile_resume
+    - analyze_jd
+
+analyze_soft_skills:
+  agent: soft_skill_analyzer
+  description: >
+    ONLY run this analysis if the JD mentions soft skills or culture fit requirements.
+
+    Using the CV profile and JD soft skill requirements from previous tasks,
+    identify evidence of soft skills in the CV text (leadership language, team
+    references, presentation experience, mentoring roles).
+
+    Match evidence against JD soft skill requirements. Assign a score 0-100.
+    If no soft skill evidence found, return score 0 with explanatory notes.
+  expected_output: >
+    A structured JSON object with fields: score (int 0-100), notes (str, max 3 sentences).
+  context:
+    - profile_resume
+    - analyze_jd
+
+score_projects:
+  agent: project_scorer
+  description: >
+    ONLY run this analysis if the CV contains a projects or portfolio section.
+
+    Using the project names from CV profile and JD requirements from previous tasks,
+    evaluate the domain relevance, technical depth, and business impact of the
+    candidate's projects.
+
+    Assign a score 0-100 based on alignment with the target job domain.
+  expected_output: >
+    A structured JSON object with fields: score (int 0-100), notes (str, max 3 sentences).
+  context:
+    - profile_resume
+    - analyze_jd
+
+aggregate_scores:
+  agent: score_aggregator
+  description: >
+    Collect all evaluation scores from previous tasks and compute a weighted overall score.
+
+    Weighting (adjust if profile is QUICK or STANDARD — fewer components):
+    - Skill match:      35%
+    - Experience match: 35%
+    - Education match:  20%
+    - Red flags:        -5% per high severity flag, -2% per medium, -1% per low
+    - Soft skills:      5% (if evaluated)
+    - Projects:         5% (if evaluated, redistribute if not)
+
+    Apply verdict thresholds:
+    - 75 and above → shortlist
+    - 50 to 74     → review
+    - below 50     → reject
+
+    Produce a COMPRESSED summary of strengths and gaps under 500 words.
+    This will be the ONLY context given to the Report Writer — be complete and accurate.
+  expected_output: >
+    A structured JSON object with fields: overall_score (int 0-100), verdict (str),
+    skill_score (int), experience_score (int), education_score (int),
+    red_flag_count (int), key_strengths (list, max 5), key_gaps (list, max 5),
+    aggregation_notes (str, under 500 words).
+  context:
+    - match_skills
+    - evaluate_experience
+    - assess_education
+    - detect_red_flags
+
+write_report:
+  agent: report_writer
+  description: >
+    Write a concise, professional evaluation report for HR reviewers.
+
+    Use ONLY the aggregated score summary provided as context.
+    Do NOT reference or re-analyze raw CV or JD data.
+
+    Structure the report as:
+    1. Verdict and overall score (1 sentence)
+    2. Top 3 strengths (bullet points)
+    3. Key gaps or concerns (bullet points)
+    4. Hiring recommendation (2-3 sentences)
+
+    Keep the total report under 400 words.
+    Write in English. Use plain professional language — no jargon.
+  expected_output: >
+    A structured JSON object with a single field: summary (str, the full report text,
+    under 400 words, formatted with clear sections).
+  context:
+    - aggregate_scores

@@ -1,0 +1,115 @@
+services:
+  # ── Application Server ────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: resume_matcher_app
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./storage:/app/storage
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Celery Worker ──────────────────────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: resume_matcher_worker
+    command: celery -A src.tasks.celery_app worker --loglevel=info --concurrency=1
+    volumes:
+      - ./storage:/app/storage
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── PostgreSQL (App Database) ──────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: resume_matcher_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-resume_matcher}
+      POSTGRES_USER: ${POSTGRES_USER:-matcher}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matcherpass}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-matcher} -d ${POSTGRES_DB:-resume_matcher}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Redis (Broker + Cache) ────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: resume_matcher_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Langfuse v2 (Optional — run: docker compose --profile langfuse up) ─────────
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: resume_matcher_langfuse
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${LANGFUSE_DB_USER:-langfuse}:${LANGFUSE_DB_PASSWORD:-langfusepass}@langfuse_db:5432/${LANGFUSE_DB_NAME:-langfuse}
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-changeme-in-production}
+      NEXTAUTH_URL: http://localhost:3000
+      TELEMETRY_ENABLED: "false"
+    depends_on:
+      langfuse_db:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - langfuse
+
+  langfuse_db:
+    image: postgres:16-alpine
+    container_name: resume_matcher_langfuse_db
+    environment:
+      POSTGRES_DB: ${LANGFUSE_DB_NAME:-langfuse}
+      POSTGRES_USER: ${LANGFUSE_DB_USER:-langfuse}
+      POSTGRES_PASSWORD: ${LANGFUSE_DB_PASSWORD:-langfusepass}
+    volumes:
+      - langfuse_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LANGFUSE_DB_USER:-langfuse}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    profiles:
+      - langfuse
+
+volumes:
+  pgdata:
+  redisdata:
+  langfuse_pgdata:
