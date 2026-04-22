@@ -4,7 +4,7 @@ Endpoints:
   POST   /jobs                  — create new job
   GET    /jobs                  — list active jobs
   GET    /jobs/{job_id}         — get job detail
-  PUT    /jobs/{job_id}         — update title/description
+  PATCH  /jobs/{job_id}         — update title/description
   PATCH  /jobs/{job_id}/archive — soft-delete (status → archived)
 """
 from fastapi import APIRouter, Depends, HTTPException, status
