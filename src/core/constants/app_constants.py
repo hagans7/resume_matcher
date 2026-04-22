@@ -34,6 +34,7 @@ BATCH_STATUS_QUEUED = "queued"
 BATCH_STATUS_PROCESSING = "processing"
 BATCH_STATUS_COMPLETED = "completed"
 BATCH_STATUS_PARTIAL_FAILURE = "partial_failure"
+BATCH_STATUS_CANCELLED = "cancelled"
 
 # ── Job Status ────────────────────────────────────────────────────────────────
 JOB_STATUS_ACTIVE = "active"

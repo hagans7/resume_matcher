@@ -22,3 +22,7 @@ class BaseJobRepository(ABC):
     @abstractmethod
     async def update_status(self, job_id: str, status: str) -> None:
         """Update job status field. Raises PersistenceError, JobNotFoundError."""
+
+    @abstractmethod
+    async def update(self, job_id: str, title: str, description: str) -> JobRequirement:
+        """Update job title and description. Raises PersistenceError, JobNotFoundError."""

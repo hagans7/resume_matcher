@@ -6,13 +6,18 @@ from typing import Annotated
 from src.api.schemas.base_schema import SuccessResponse
 from src.api.schemas.batch_schema import BatchStatusResponse, BatchSubmitResponse
 from src.core.exceptions.app_exceptions import (
+    BatchNotFoundError,
     FileValidationError,
     FileTooLargeError,
     JobNotFoundError,
     ValidationError,
 )
 from src.core.logging.logger import get_logger
-from src.providers import get_check_batch_status_service, get_submit_batch_service
+from src.providers import (
+    get_check_batch_status_service, 
+    get_submit_batch_service, 
+    get_cancel_batch_service)
+from src.services.cancel_batch import CancelBatchService
 from src.services.check_batch_status import CheckBatchStatusService
 from src.services.submit_batch import SubmitBatchService
 
@@ -77,3 +82,26 @@ async def get_batch_status(
         )
     except BatchNotFoundError as exc:
         raise HTTPException(status_code=404, detail=exc.message)
+
+
+@router.delete("/{batch_id}/cancel", status_code=204)
+async def cancel_batch(
+    batch_id: str,
+    service: CancelBatchService = Depends(get_cancel_batch_service),
+):
+    """Cancel a queued or processing batch.
+ 
+    Sets batch status to 'cancelled'. Celery workers check this flag before
+    each task execution and skip the LLM call if batch is cancelled.
+    This prevents unnecessary token consumption for unwanted evaluations.
+ 
+    Only 'queued' and 'processing' batches can be cancelled.
+    Returns HTTP 204 (No Content) on success.
+    """
+    try:
+        await service.execute(batch_id)
+    except BatchNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=exc.message)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.message)
+ 

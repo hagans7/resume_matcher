@@ -78,6 +78,26 @@ class JobRepository(BaseJobRepository):
         except SQLAlchemyError as exc:
             raise PersistenceError(f"Failed to update job status: {exc}", {"job_id": job_id}) from exc
 
+    async def update(self, job_id: str, title: str, description: str) -> JobRequirement:
+        """Update job title and description. Raises PersistenceError, JobNotFoundError."""
+        try:
+            stmt = (
+                update(JobORM)
+                .where(JobORM.id == job_id)
+                .values(title=title, description=description)
+                .returning(JobORM)
+            )
+            result = await self._session.execute(stmt)
+            orm = result.scalar_one_or_none()
+            if orm is None:
+                raise JobNotFoundError(f"Job not found: {job_id}", {"job_id": job_id})
+            logger.info("job_updated", job_id=job_id)
+            return self._to_entity(orm)
+        except JobNotFoundError:
+            raise
+        except SQLAlchemyError as exc:
+            raise PersistenceError(f"Failed to update job: {exc}", {"job_id": job_id}) from exc
+        
     @staticmethod
     def _to_entity(orm: JobORM) -> JobRequirement:
         return JobRequirement(

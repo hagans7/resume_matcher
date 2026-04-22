@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from src.core.config.settings import settings
 from src.core.constants.app_constants import (
+    BATCH_STATUS_CANCELLED,
     CANDIDATE_STATUS_EVALUATED,
     CANDIDATE_STATUS_FAILED,
     CANDIDATE_STATUS_PROCESSING,
@@ -105,7 +106,18 @@ async def _run_evaluation(candidate_id: str, batch_id: str | None) -> dict:
             if candidate is None:
                 logger.error("evaluate_single_candidate_not_found", candidate_id=candidate_id)
                 return {"candidate_id": candidate_id, "status": "not_found"}
-
+            
+            # ── BATCH CANCELLATION CHECK
+            if batch_id:
+                batch = await batch_repo.get_by_id(batch_id)
+                if batch and batch.status == BATCH_STATUS_CANCELLED:
+                    logger.info(
+                        "evaluate_single_skip_batch_cancelled",
+                        candidate_id=candidate_id,
+                        batch_id=batch_id,
+                    )
+                    return {"candidate_id": candidate_id, "status": "cancelled"}
+                
             if candidate.status == CANDIDATE_STATUS_EVALUATED:
                 logger.info("evaluate_single_skip_already_done", candidate_id=candidate_id)
                 return {"candidate_id": candidate_id, "status": CANDIDATE_STATUS_EVALUATED}
